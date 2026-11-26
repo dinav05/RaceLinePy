@@ -41,3 +41,6 @@ data/telemetry/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+
+# External track datasets
+data/tracks/*.csv
