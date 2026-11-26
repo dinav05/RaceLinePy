@@ -1,12 +1,17 @@
 from racelinepy.track import Track
-from racelinepy.visualization import plot_track
-import numpy as np
+from racelinepy.visualization import plot_track, plot_curvature
 
-spa = Track.from_csv("data/tracks/Spa.csv")
+import matplotlib.pyplot as plt
 
-s = spa.compute_arc_length()
 
-print(s[:5])
-print(s[-5:])
-print(s.shape)
-print(spa.compute_track_length())
+def main() -> None:
+    spa = Track.from_csv("data/tracks/Spa.csv")
+
+    plot_track(spa)
+    plot_curvature(spa)
+
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()

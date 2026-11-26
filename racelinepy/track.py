@@ -162,3 +162,42 @@ class Track:
         """
         
         return float(np.sum(self.compute_segment_lengths()))
+
+
+    def compute_curvature(self) -> NDArray[np.float64]:
+        """Compute the signed curvature along the track centerline.
+
+        Approximates the derivative of the unit tangent vectors with
+        respect to arc length using periodic central differences.
+        Projects the resulting derivative onto the unit normal vectors.
+
+        Positive curvature indicates a left turn, while negative
+        curvature indicates a right turn.
+
+        Returns:
+            NDArray[np.float64]: Signed curvature in inverse meters
+                (1/m), shape (N,).
+        """
+
+        tangents = self.compute_tangents()
+
+
+        # Compute the change in tangent direction using periodic central differences.
+        delta_tangents = np.roll(tangents, shift=-1, axis=0) - np.roll(tangents, shift=1, axis=0)
+
+
+        segment_lengths = self.compute_segment_lengths()
+
+        # Sum adjacent segment lengths to obtain the central difference interval.
+        ds = (np.roll(segment_lengths, shift=1) + segment_lengths)[:, None]
+
+        # Approximate the derivative of the unit tangents with respect to arc length.
+        dtangent_ds = delta_tangents / ds
+
+
+        normals = self.compute_normals()
+
+        # Project the tangent derivative onto the left-pointing unit normals.
+        curvature = np.sum(dtangent_ds * normals, axis=1)
+
+        return curvature
