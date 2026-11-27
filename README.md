@@ -13,8 +13,9 @@ on numerical accuracy, mathematical validation and a modular
 Python architecture.
 
 > **Development status:** Early development.
-> Track geometry, curvature analysis and Frenet-based racing
-> line representation are implemented. Optimization is in progress.
+> Track geometry, curvature analysis and periodic Frenet-based
+> racing line parametrization are implemented and validated.
+> Minimum curvature optimization is the next development milestone.
 
 ## Features
 
@@ -38,7 +39,11 @@ Python architecture.
 
 - Represent racing lines using lateral Frenet offsets
 - Transform Frenet coordinates into Cartesian coordinates
-- Validate transformations against analytical reference geometry
+- Distribute control points uniformly along the reference arc length
+- Reduce optimization dimensionality through control point parametrization
+- Generate smooth offset fields using periodic cubic spline interpolation
+- Validate discrete lateral track constraints with configurable safety margins
+- Validate transformations and interpolation against analytical reference geometry
 
 ### Visualization
 
@@ -46,37 +51,38 @@ Python architecture.
 - Track boundaries and driving surface
 - Toggleable curvature color map
 - Signed curvature profile
+- Racing line overlay
+- Toggleable control point visualization
+- Independent visibility controls for trajectory overlays
 - Consistent dark-mode visualization theme
 
-## Numerical Validation
+### Racing Line and Interpolation Validation
 
-The numerical curvature algorithm has been validated against
-a uniformly sampled circular track with a radius of 100 m.
+The Frenet transformation and periodic spline interpolation
+have been validated using synthetic circular tracks and
+analytical reference functions.
 
 | Metric | Result |
 |---|---:|
-| Number of points | 1000 |
-| Analytical curvature | 0.0100000000 m⁻¹ |
-| Numerical curvature | 0.0099999507 m⁻¹ |
-| Maximum absolute error | 4.935 × 10⁻⁸ m⁻¹ |
-| Relative error | 0.000493% |
+| Reference track points | 1000 |
+| Control points | 20 |
+| Reference function | Periodic sine wave |
+| Offset amplitude | 3 m |
+| Maximum interpolation error | 7.703376e-05 m |
+| Maximum interpolation error | 0.077 mm |
+| Racing line tests | 11/11 passed |
 
-A convergence study confirmed second-order convergence on
-the circular test track.
+The validation suite covers:
 
-| Number of points | Maximum absolute error | Error ratio |
-|---:|---:|---:|
-| 20 | 1.231166e-04 | — |
-| 40 | 3.082666e-05 | 3.993835 |
-| 80 | 7.709638e-06 | 3.998458 |
-| 160 | 1.927595e-06 | 3.999614 |
-| 320 | 4.819104e-07 | 3.999904 |
-| 640 | 1.204783e-07 | 3.999976 |
-| 1280 | 3.011966e-08 | 3.999990 |
-
-The reconstructed Spa-Francorchamps centerline has a computed
-length of 7000.05 m, compared to the official circuit length
-of 7004 m.
+- Zero-offset identity transformation
+- Left and right boundary reconstruction
+- Analytical radius validation
+- Zero and constant offset interpolation
+- Control point reproduction
+- Periodic interpolation accuracy
+- Lateral constraint validation
+- Safety margin validation
+- Local constraint violation detection
 
 ## Project Structure
 
@@ -93,6 +99,8 @@ RaceLinePy/
 │   ├── __init__.py
 │   ├── test_geometry.py
 │   └── test_racing_line.py
+├── .gitignore
+├── LICENSE
 ├── main.py
 ├── requirements.txt
 └── README.md
@@ -158,20 +166,59 @@ left, right = track.compute_boundaries()
 print(f"Track length: {length:.2f} m")
 ```
 
-### Racing Line Representation
+
+### Racing Line Parametrization
+
+Generate a smooth, periodic racing line using a reduced number
+of independent control point offsets.
 
 ```python
 import numpy as np
-from racelinepy.racing_line import RacingLine
 
-offsets = np.zeros(len(track.centerline))
-racing_line = RacingLine(track, offsets)
+from racelinepy.track import Track
+from racelinepy.racing_line import RacingLineParametrization
+from racelinepy.visualization import plot_track
 
-coordinates = racing_line.to_cartesian()
+import matplotlib.pyplot as plt
+
+track = Track.from_csv("data/tracks/Spa.csv")
+
+n_control_points = 100
+
+parametrization = RacingLineParametrization(
+    track, n_control_points
+)
+
+control_offsets = 3.0 * np.sin(
+    np.linspace(
+        0, 20 * np.pi,
+        n_control_points,
+        endpoint=False
+    )
+)
+
+racing_line = parametrization.create_racing_line(control_offsets)
+
+print(racing_line.is_feasible(margin=0.5))
+
+plot_track(
+    track,
+    racing_line,
+    parametrization,
+    control_offsets
+)
+
+plt.show()
 ```
 
-Positive lateral offsets point towards the left track boundary,
-while negative offsets point towards the right boundary.
+This example generates an artificial periodic trajectory for
+visualization and validation purposes.
+
+The lateral constraints are currently evaluated at the discrete
+reference track points. Continuous feasibility between sampling
+points is not guaranteed.
+
+The trajectory is not yet optimized for curvature or lap time.
 
 ## Testing
 
@@ -189,12 +236,12 @@ python -m tests.test_racing_line
 - [x] M1 — Track Loader
 - [x] M2 — Track Geometry
 - [x] M3 — Curvature Analysis
-- [ ] M4 — Racing Line Parametrization
+- [x] M4 — Racing Line Parametrization
   - [x] Lateral Frenet offset transformation
-  - [ ] Control point selection
-  - [ ] Periodic interpolation
-  - [ ] Track constraint validation
-  - [ ] Racing line visualization
+  - [x] Control point selection
+  - [x] Periodic interpolation
+  - [x] Track constraint validation
+  - [x] Racing line visualization
 - [ ] M5 — Minimum Curvature Optimization
 - [ ] M6 — Optimization Validation and Benchmarking
 
@@ -231,3 +278,9 @@ Technical University of Munich.
 RaceLinePy is an experimental engineering and educational
 project intended for numerical research and simracing analysis.
 It is not intended for safety-critical vehicle control.
+
+## License
+
+RaceLinePy is licensed under the [MIT License](LICENSE).
+
+Third-party track datasets are subject to their respective licenses.
